@@ -54,15 +54,19 @@ describe Mdbx do
     end
   end
 
+  it "gets" do
+    env.transaction do |tx|
+      db = tx.db
+      db.insert "key".to_slice, "value".to_slice
+      db.get("key".to_slice).should eq "value".to_slice
+    end
+  end
+
   it "range-scans" do
     kvs = (0..4).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
     env.transaction do |tx|
       db = tx.db
       kvs.each { |k, v| db.insert k, v }
-    end
-
-    env.transaction do |tx|
-      db = tx.db
       db.all.should eq kvs
       db.from(kvs[0][0]).should eq kvs
       db.from(kvs[2][0]).should eq kvs[2..]

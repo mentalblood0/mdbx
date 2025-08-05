@@ -167,6 +167,7 @@ lib LibMdbx
   fun drop = mdbx_drop(txn : Void*, dbi : Dbi, del : Bool) : Error
   fun put = mdbx_put(txn : Void*, dbi : Dbi, key : Val*, data : Val*, flags : PutFlags) : Error
   fun del = mdbx_del(txn : Void*, dbi : Dbi, key : Val*, data : Val*) : Error
+  fun get = mdbx_get(txn : Void*, dbi : Dbi, key : Val*, data : Val*) : Error
   fun txn_commit = mdbx_txn_commit(txn : Void*) : Error
   fun txn_abort = mdbx_txn_abort(txn : Void*) : Error
   fun cursor_open = mdbx_cursor_open(txn : Void*, dbi : Dbi, cursor : Void**) : Error

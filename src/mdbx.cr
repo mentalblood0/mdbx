@@ -76,6 +76,15 @@ module Mdbx
       end
     end
 
+    def self.get(txn : P, dbi : LibMdbx::Dbi, k : Bytes) : Bytes
+      ks = uninitialized LibMdbx::Val
+      ks.iov_base = k.to_unsafe
+      ks.iov_len = k.size
+      vs = uninitialized LibMdbx::Val
+      mcec "get(#{txn}, #{dbi}, #{ks}, #{vs})", LibMdbx.get txn, dbi, pointerof(ks), pointerof(vs)
+      Bytes.new Pointer(UInt8).new(vs.iov_base.address), vs.iov_len
+    end
+
     def self.txn_commit(txn : P) : Nil
       mcec "txn_commit(#{txn})", LibMdbx.txn_commit txn
     end
@@ -190,6 +199,10 @@ module Mdbx
 
     def delete(k : K, v : V? = nil)
       Api.del @txn.not_nil!, @dbi, k, v
+    end
+
+    def get(k : K)
+      Api.get @txn.not_nil!, @dbi, k
     end
 
     def cursor
