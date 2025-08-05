@@ -7,45 +7,49 @@ module Mdbx
   alias KV = {K, V}
 
   class Exception < Exception
+    def self.from_code(e : LibMdbx::Error, src : String)
+      self.new src + ": (#{e.value} #{e}) #{String.new LibMdbx.strerror e}"
+    end
   end
 
   class Api
-    def self.check_error_code(source : String, e : LibMdbx::Error)
-      raise Exception.new "#{source}: (#{e.value} #{e}) #{String.new LibMdbx.strerror e}" if e != LibMdbx::Error::MDBX_SUCCESS
+    macro mcec(src, b)
+      ev = {{b}}
+      raise Exception.from_code ev, {{src}} unless ev == LibMdbx::Error::MDBX_SUCCESS
     end
 
     def self.env_create : P
       r = P.new 0_u64
-      check_error_code "env_create(#{pointerof(r)})", LibMdbx.env_create pointerof(r)
+      mcec "env_create(#{pointerof(r)})", LibMdbx.env_create pointerof(r)
       r
     end
 
     def self.env_open(env : P, path : Path, flags : LibMdbx::EnvFlags, mode : LibC::ModeT) : Nil
-      check_error_code "env_open(#{env}, \"#{path}\", #{flags}, #{mode})", LibMdbx.env_open env, path.to_s.to_unsafe, flags, mode
+      mcec "env_open(#{env}, \"#{path}\", #{flags}, #{mode})", LibMdbx.env_open env, path.to_s.to_unsafe, flags, mode
     end
 
     def self.env_close(env : P)
-      check_error_code "env_close(#{env})", LibMdbx.env_close env
+      mcec "env_close(#{env})", LibMdbx.env_close env
     end
 
     def self.txn_begin(env : P, parent : P?, flags : LibMdbx::TxnFlags) : P
       r = P.new 0_u64
-      check_error_code "txn_begin(#{env}, #{parent}, #{flags}, #{pointerof(r)})", LibMdbx.txn_begin env, parent ? parent : P.null, flags, pointerof(r)
+      mcec "txn_begin(#{env}, #{parent}, #{flags}, #{pointerof(r)})", LibMdbx.txn_begin env, parent ? parent : P.null, flags, pointerof(r)
       r
     end
 
     def self.dbi_open(txn : P, name : String?, flags : LibMdbx::DbFlags) : LibMdbx::Dbi
       r = LibMdbx::Dbi.new 0
-      check_error_code "dbi_open(#{txn}, #{name}, #{flags}, #{pointerof(r)})", LibMdbx.dbi_open txn, name ? name.to_unsafe : Pointer(LibC::Char).null, flags, pointerof(r)
+      mcec "dbi_open(#{txn}, #{name}, #{flags}, #{pointerof(r)})", LibMdbx.dbi_open txn, name ? name.to_unsafe : Pointer(LibC::Char).null, flags, pointerof(r)
       r
     end
 
     def self.dbi_close(env : P, dbi : LibMdbx::Dbi)
-      check_error_code "dbi_close(#{env}, #{dbi})", LibMdbx.dbi_close env, dbi
+      mcec "dbi_close(#{env}, #{dbi})", LibMdbx.dbi_close env, dbi
     end
 
     def self.drop(txn : P, dbi : LibMdbx::Dbi, del : Bool)
-      check_error_code "drop(#{txn}, #{dbi}, #{del})", LibMdbx.drop txn, dbi, del
+      mcec "drop(#{txn}, #{dbi}, #{del})", LibMdbx.drop txn, dbi, del
     end
 
     def self.put(txn : P, dbi : LibMdbx::Dbi, k : Bytes, v : Bytes, flags : LibMdbx::PutFlags) : Nil
@@ -55,7 +59,7 @@ module Mdbx
       vs = uninitialized LibMdbx::Val
       vs.iov_base = v.to_unsafe
       vs.iov_len = v.size
-      check_error_code "put(#{txn}, #{dbi}, #{ks}, #{vs}, #{flags})", LibMdbx.put txn, dbi, pointerof(ks), pointerof(vs), flags
+      mcec "put(#{txn}, #{dbi}, #{ks}, #{vs}, #{flags})", LibMdbx.put txn, dbi, pointerof(ks), pointerof(vs), flags
     end
 
     def self.del(txn : P, dbi : LibMdbx::Dbi, k : Bytes, v : Bytes?) : Nil
@@ -66,28 +70,28 @@ module Mdbx
         vs = uninitialized LibMdbx::Val
         vs.iov_base = v.to_unsafe
         vs.iov_len = v.size
-        check_error_code "del(#{txn}, #{dbi}, #{ks}, #{vs})", LibMdbx.del txn, dbi, pointerof(ks), pointerof(vs)
+        mcec "del(#{txn}, #{dbi}, #{ks}, #{vs})", LibMdbx.del txn, dbi, pointerof(ks), pointerof(vs)
       else
-        check_error_code "del(#{txn}, #{dbi}, #{ks}, NULL)", LibMdbx.del txn, dbi, pointerof(ks), Pointer(LibMdbx::Val).null
+        mcec "del(#{txn}, #{dbi}, #{ks}, NULL)", LibMdbx.del txn, dbi, pointerof(ks), Pointer(LibMdbx::Val).null
       end
     end
 
     def self.txn_commit(txn : P) : Nil
-      check_error_code "txn_commit(#{txn})", LibMdbx.txn_commit txn
+      mcec "txn_commit(#{txn})", LibMdbx.txn_commit txn
     end
 
     def self.txn_abort(txn : P)
-      check_error_code "txn_abort(#{txn})", LibMdbx.txn_abort txn
+      mcec "txn_abort(#{txn})", LibMdbx.txn_abort txn
     end
 
     def self.cursor_open(txn : P, dbi : LibMdbx::Dbi) : P
       r = P.new 0_u64
-      check_error_code "cursor_open(#{txn}, #{dbi})", LibMdbx.cursor_open txn, dbi, pointerof(r)
+      mcec "cursor_open(#{txn}, #{dbi})", LibMdbx.cursor_open txn, dbi, pointerof(r)
       r
     end
 
     def self.cursor_close(cursor : P)
-      check_error_code "cursor_close(#{cursor})", LibMdbx.cursor_close cursor
+      mcec "cursor_close(#{cursor})", LibMdbx.cursor_close cursor
     end
 
     def self.cursor_get(cursor : P, op : LibMdbx::CursorOp, k : Bytes? = nil, v : Bytes? = nil) : KV?
@@ -107,7 +111,7 @@ module Mdbx
         return nil
       when LibMdbx::Error::MDBX_SUCCESS
       else
-        check_error_code "cursor_get(#{cursor}, #{op})", e
+        mcec "cursor_get(#{cursor}, #{op})", e
       end
 
       {Bytes.new(Pointer(UInt8).new(ks.iov_base.address), ks.iov_len),
