@@ -17,17 +17,17 @@ module Mdbx
       r
     end
 
-    def self.env_open(env : P, path : String, flags : LibMdbx::EnvFlags, mode : LibC::ModeT) : Nil
-      check_error_code "env_open(#{env}, \"#{path}\", #{flags}, #{mode})", LibMdbx.env_open env, path.to_unsafe, flags, mode
+    def self.env_open(env : P, path : Path, flags : LibMdbx::EnvFlags, mode : LibC::ModeT) : Nil
+      check_error_code "env_open(#{env}, \"#{path}\", #{flags}, #{mode})", LibMdbx.env_open env, path.to_s.to_unsafe, flags, mode
     end
 
     def self.env_close(env : P)
       check_error_code "env_close(#{env})", LibMdbx.env_close env
     end
 
-    def self.txn_begin(env : P, parent : P, flags : LibMdbx::TxnFlags) : P
+    def self.txn_begin(env : P, parent : P?, flags : LibMdbx::TxnFlags) : P
       r = P.new 0_u64
-      check_error_code "txn_begin(#{env}, #{parent}, #{flags}, #{pointerof(r)})", LibMdbx.txn_begin env, parent, flags, pointerof(r)
+      check_error_code "txn_begin(#{env}, #{parent}, #{flags}, #{pointerof(r)})", LibMdbx.txn_begin env, parent ? parent : P.null, flags, pointerof(r)
       r
     end
 
@@ -56,7 +56,7 @@ module Mdbx
     end
 
     def self.txn_abort(txn : P)
-      check_error_clode "txn_abort(#{txn})", LibMdbx.txn_abort txn
+      check_error_code "txn_abort(#{txn})", LibMdbx.txn_abort txn
     end
 
     def self.cursor_open(txn : P, dbi : LibMdbx::Dbi) : P
@@ -83,6 +83,55 @@ module Mdbx
 
       {key:   Bytes.new(Pointer(UInt8).new(ks.iov_base.address), ks.iov_len),
        value: Bytes.new(Pointer(UInt8).new(vs.iov_base.address), vs.iov_len)}
+    end
+  end
+
+  class Env
+    getter path : Path
+    getter flags : LibMdbx::EnvFlags
+    getter mode : LibC::ModeT
+
+    @env : P
+    property need_finalize : Bool = true
+    property txn : P?
+
+    def initialize(@path : Path, @flags : LibMdbx::EnvFlags = LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, @mode : LibC::ModeT = 0o664)
+      @env = Api.env_create
+      Api.env_open @env, @path, @flags, @mode
+    end
+
+    def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
+      txn = Api.txn_begin @env, @txn, flags
+      r = self.dup
+      r.txn = txn
+      r.need_finalize = false
+      begin
+        yield r
+      rescue ex
+        Api.txn_abort txn
+        raise ex
+      end
+      Api.txn_commit txn
+    end
+
+    def dbi(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
+      Api.dbi_open @txn.not_nil!, name, flags
+    end
+
+    def close(dbi : LibMdbx::Dbi)
+      Api.dbi_close @env, dbi
+    end
+
+    def put(dbi : LibMdbx::Dbi, k : Bytes, v : Bytes, flags : LibMdbx::PutFlags = LibMdbx::PutFlags.new(0))
+      if @txn
+        Api.put @txn.not_nil!, dbi, k, v, flags
+      else
+        self.transaction { |tx| tx.put dbi, k, v, flags }
+      end
+    end
+
+    def finalize
+      Api.env_close @env if @need_finalize
     end
   end
 end
