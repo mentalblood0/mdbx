@@ -21,6 +21,10 @@ module Mdbx
       check_error_code "env_open(#{env}, \"#{path}\", #{flags}, #{mode})", LibMdbx.env_open env, path.to_unsafe, flags, mode
     end
 
+    def self.env_close(env : P)
+      check_error_code "env_close(#{env})", LibMdbx.env_close env
+    end
+
     def self.txn_begin(env : P, parent : P, flags : LibMdbx::TxnFlags) : P
       r = P.new 0_u64
       check_error_code "txn_begin(#{env}, #{parent}, #{flags}, #{pointerof(r)})", LibMdbx.txn_begin env, parent, flags, pointerof(r)
@@ -31,6 +35,10 @@ module Mdbx
       r = LibMdbx::Dbi.new 0
       check_error_code "dbi_open(#{txn}, #{name}, #{flags}, #{pointerof(r)})", LibMdbx.dbi_open txn, name ? name.to_unsafe : Pointer(LibC::Char).null, flags, pointerof(r)
       r
+    end
+
+    def self.dbi_close(env : P, dbi : LibMdbx::Dbi)
+      check_error_code "dbi_close(#{env}, #{dbi})", LibMdbx.dbi_close env, dbi
     end
 
     def self.put(txn : P, dbi : LibMdbx::Dbi, k : Bytes, v : Bytes, flags : LibMdbx::PutFlags) : Nil
@@ -47,10 +55,18 @@ module Mdbx
       check_error_code "txn_commit(#{txn})", LibMdbx.txn_commit txn
     end
 
+    def self.txn_abort(txn : P)
+      check_error_clode "txn_abort(#{txn})", LibMdbx.txn_abort txn
+    end
+
     def self.cursor_open(txn : P, dbi : LibMdbx::Dbi) : P
       r = P.new 0_u64
       check_error_code "cursor_open(#{txn}, #{dbi})", LibMdbx.cursor_open txn, dbi, pointerof(r)
       r
+    end
+
+    def self.cursor_close(cursor : P)
+      check_error_code "cursor_close(#{cursor})", LibMdbx.cursor_close cursor
     end
 
     def self.cursor_get(cursor : P, op : LibMdbx::CursorOp) : {key: Bytes, value: Bytes}?

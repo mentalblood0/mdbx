@@ -22,6 +22,10 @@ describe Mdbx do
     while kv = Mdbx::Api.cursor_get cursor, LibMdbx::CursorOp::MDBX_NEXT
       kvs[kv[:key]] = kv[:value]
     end
+    Mdbx::Api.cursor_close(cursor)
     kvs.should eq({k => v})
+
+    Mdbx::Api.dbi_close env, dbi
+    Mdbx::Api.env_close env
   end
 end

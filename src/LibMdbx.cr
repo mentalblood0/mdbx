@@ -160,10 +160,14 @@ lib LibMdbx
   fun strerror = mdbx_strerror(errnum : Int32) : LibC::Char*
   fun env_create = mdbx_env_create(penv : Void**) : Error
   fun env_open = mdbx_env_open(env : Void*, pathname : LibC::Char*, flags : EnvFlags, mode : LibC::ModeT) : Error
+  fun env_close = mdbx_env_close(env : Void*) : Error
   fun txn_begin = mdbx_txn_begin(env : Void*, parent : Void*, flags : TxnFlags, txn : Void**) : Error
   fun dbi_open = mdbx_dbi_open(txn : Void*, name : LibC::Char*, flags : DbFlags, dbi : Dbi*) : Error
+  fun dbi_close = mdbx_dbi_close(env : Void*, dbi : Dbi) : Error
   fun put = mdbx_put(txn : Void*, dbi : Dbi, key : Val*, data : Val*, flags : PutFlags) : Error
   fun txn_commit = mdbx_txn_commit(txn : Void*) : Error
+  fun txn_abort = mdbx_txn_abort(txn : Void*) : Error
   fun cursor_open = mdbx_cursor_open(txn : Void*, dbi : Dbi, cursor : Void**) : Error
   fun cursor_get = mdbx_cursor_get(cursor : Void*, key : Val*, data : Val*, op : CursorOp) : Error
+  fun cursor_close = mdbx_cursor_close(cursor : Void*) : Error
 end
