@@ -38,12 +38,10 @@ describe Mdbx do
       txn.put txn.dbi, k, v
     end
 
-    kvs = {} of Bytes => Bytes
     env.transaction do |txn|
-      txn.each txn.dbi do |kv|
-        kvs[kv[0]] = kv[1]
-      end
+      txn.each(txn.dbi).should eq([{k, v}])
+      txn.from(txn.dbi, k).should eq([{k, v}])
+      txn.from(txn.dbi, k, v).should eq([{k, v}])
     end
-    kvs.should eq({k => v})
   end
 end

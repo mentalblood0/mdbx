@@ -2,7 +2,9 @@ require "./LibMdbx.cr"
 
 module Mdbx
   alias P = Pointer(Void)
-  alias KV = {Bytes, Bytes}
+  alias K = Bytes
+  alias V = Bytes
+  alias KV = {K, V}
 
   class Exception < Exception
   end
@@ -71,12 +73,12 @@ module Mdbx
     end
 
     def self.cursor_get(cursor : P, op : LibMdbx::CursorOp, k : Bytes? = nil, v : Bytes? = nil) : KV?
-      ks = uninitialized LibMdbx::Val
+      ks = LibMdbx::Val.new
       if k
         ks.iov_base = k.to_unsafe
         ks.iov_len = k.size
       end
-      vs = uninitialized LibMdbx::Val
+      vs = LibMdbx::Val.new
       if v
         vs.iov_base = v.to_unsafe
         vs.iov_len = v.size
@@ -131,12 +133,8 @@ module Mdbx
       Api.dbi_close @env, dbi
     end
 
-    def put(dbi : LibMdbx::Dbi, k : Bytes, v : Bytes, flags : LibMdbx::PutFlags = LibMdbx::PutFlags.new(0))
-      if @txn
-        Api.put @txn.not_nil!, dbi, k, v, flags
-      else
-        self.transaction { |tx| tx.put dbi, k, v, flags }
-      end
+    def put(dbi : LibMdbx::Dbi, k : K, v : V, flags : LibMdbx::PutFlags = LibMdbx::PutFlags.new(0))
+      Api.put @txn.not_nil!, dbi, k, v, flags
     end
 
     def cursor(dbi : LibMdbx::Dbi)
@@ -148,6 +146,30 @@ module Mdbx
       while kv = c.next
         yield kv
       end
+    end
+
+    def each(dbi : LibMdbx::Dbi)
+      r = [] of KV
+      each(dbi) { |kv| r << kv }
+      r
+    end
+
+    def from(dbi : LibMdbx::Dbi, k : K, v : V? = nil, &)
+      c = self.cursor dbi
+      if kv = c.after k, v
+        yield kv
+      else
+        return
+      end
+      while kv = c.next
+        yield kv
+      end
+    end
+
+    def from(dbi : LibMdbx::Dbi, k : K, v : V? = nil)
+      r = [] of KV
+      from(dbi, k, v) { |kv| r << kv }
+      r
     end
 
     def finalize
@@ -163,6 +185,10 @@ module Mdbx
 
     def next : KV?
       @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_NEXT
+    end
+
+    def after(k : K, v : V?) : KV?
+      @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_SET_LOWERBOUND, k, v
     end
 
     def finalize
