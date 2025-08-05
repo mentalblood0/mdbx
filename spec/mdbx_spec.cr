@@ -34,33 +34,27 @@ describe Mdbx do
 
     kvs = (0..4).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
     env.transaction do |tx|
-      dbi = tx.dbi
-      kvs.each { |kv| tx.insert dbi, kv[0], kv[1] }
+      db = tx.db
+      kvs.each { |k, v| db.insert k, v }
     end
 
     env.transaction do |tx|
-      dbi = tx.dbi
-      tx.each(dbi).should eq kvs
-      tx.from(dbi, kvs[0][0]).should eq kvs
-      tx.from(dbi, kvs[1][0]).should eq kvs[1..]
-      tx.from!(dbi, kvs[0][0]).should eq kvs
-      tx.from!(dbi, kvs[1][0]).should eq kvs[1..]
-      tx.from(dbi, kvs[0][0], kvs[0][1]).should eq kvs
-      tx.from(dbi, kvs[1][0], kvs[1][1]).should eq kvs[1..]
+      db = tx.db
+      db.each.should eq kvs
+      db.from(kvs[0][0]).should eq kvs
+      db.from(kvs[1][0]).should eq kvs[1..]
+      db.from!(kvs[0][0]).should eq kvs
+      db.from!(kvs[1][0]).should eq kvs[1..]
+      db.from(kvs[0][0], kvs[0][1]).should eq kvs
+      db.from(kvs[1][0], kvs[1][1]).should eq kvs[1..]
     end
     env.transaction do |tx|
-      dbi = tx.dbi
-      kvs.each { |kv| tx.delete dbi, kv[0], kv[1] }
+      db = tx.db
+      kvs.each { |kv| db.delete kv[0], kv[1] }
     end
     env.transaction do |tx|
-      dbi = tx.dbi
-      tx.each(dbi).should eq [] of Mdbx::KV
-      tx.from(dbi, kvs[0][0]).should eq [] of Mdbx::KV
-      tx.from(dbi, kvs[1][0]).should eq [] of Mdbx::KV
-      tx.from!(dbi, kvs[0][0]).should eq [] of Mdbx::KV
-      tx.from!(dbi, kvs[1][0]).should eq [] of Mdbx::KV
-      tx.from(dbi, kvs[0][0], kvs[0][1]).should eq [] of Mdbx::KV
-      tx.from(dbi, kvs[1][0], kvs[1][1]).should eq [] of Mdbx::KV
+      db = tx.db
+      db.each.should eq [] of Mdbx::KV
     end
   end
 end

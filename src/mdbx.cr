@@ -135,57 +135,71 @@ module Mdbx
       rescue ex
         Api.txn_abort txn
         raise ex
+      else
+        Api.txn_commit txn
       end
-      Api.txn_commit txn
     end
 
-    def dbi(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
-      Api.dbi_open @txn.not_nil!, name, flags
+    def db(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
+      Db.new @txn.not_nil!, Api.dbi_open @txn.not_nil!, name, flags
     end
 
-    def close(dbi : LibMdbx::Dbi)
+    def close
       Api.dbi_close @env, dbi
     end
 
-    def put(dbi : LibMdbx::Dbi, k : K, v : V, flags : LibMdbx::PutFlags)
-      Api.put @txn.not_nil!, dbi, k, v, flags
+    def finalize
+      Api.env_close @env if @need_finalize
+    end
+  end
+
+  class Db
+    getter dbi : LibMdbx::Dbi
+
+    @txn : P
+
+    def initialize(@txn, @dbi)
     end
 
-    def insert(dbi : LibMdbx::Dbi, k : K, v : V)
-      put dbi, k, v, LibMdbx::PutFlags::MDBX_NOOVERWRITE
+    def put(k : K, v : V, flags : LibMdbx::PutFlags)
+      Api.put @txn.not_nil!, @dbi, k, v, flags
     end
 
-    def upsert(dbi : LibMdbx::Dbi, k : K, v : V)
-      put dbi, k, v, LibMdbx::PutFlags::MDBX_UPSERT
+    def insert(k : K, v : V)
+      put k, v, LibMdbx::PutFlags::MDBX_NOOVERWRITE
     end
 
-    def update(dbi : LibMdbx::Dbi, k : K, v : V)
-      put dbi, k, v, LibMdbx::PutFlags::MDBX_CURRENT
+    def upsert(k : K, v : V)
+      put k, v, LibMdbx::PutFlags::MDBX_UPSERT
     end
 
-    def delete(dbi : LibMdbx::Dbi, k : K, v : V?)
-      Api.del @txn.not_nil!, dbi, k, v
+    def update(k : K, v : V)
+      put k, v, LibMdbx::PutFlags::MDBX_CURRENT
     end
 
-    def cursor(dbi : LibMdbx::Dbi)
-      Cursor.new Api.cursor_open @txn.not_nil!, dbi
+    def delete(k : K, v : V?)
+      Api.del @txn.not_nil!, @dbi, k, v
     end
 
-    def each(dbi : LibMdbx::Dbi, &)
-      c = self.cursor dbi
+    def cursor
+      Cursor.new Api.cursor_open @txn.not_nil!, @dbi
+    end
+
+    def each(&)
+      c = self.cursor
       while kv = c.next
         yield kv
       end
     end
 
-    def each(dbi : LibMdbx::Dbi)
+    def each
       r = [] of KV
-      each(dbi) { |kv| r << kv }
+      each { |kv| r << kv }
       r
     end
 
-    def from!(dbi : LibMdbx::Dbi, k : K, &)
-      c = self.cursor dbi
+    def from!(k : K, &)
+      c = self.cursor
       if kv = c.on! k
         yield kv
       else
@@ -196,14 +210,14 @@ module Mdbx
       end
     end
 
-    def from!(dbi : LibMdbx::Dbi, k : K)
+    def from!(k : K)
       r = [] of KV
-      from!(dbi, k) { |kv| r << kv }
+      from!(k) { |kv| r << kv }
       r
     end
 
-    def from(dbi : LibMdbx::Dbi, k : K, v : V? = nil, &)
-      c = self.cursor dbi
+    def from(k : K, v : V? = nil, &)
+      c = self.cursor
       if kv = c.on k, v
         yield kv
       else
@@ -214,14 +228,10 @@ module Mdbx
       end
     end
 
-    def from(dbi : LibMdbx::Dbi, k : K, v : V? = nil)
+    def from(k : K, v : V? = nil)
       r = [] of KV
-      from(dbi, k, v) { |kv| r << kv }
+      from(k, v) { |kv| r << kv }
       r
-    end
-
-    def finalize
-      Api.env_close @env if @need_finalize
     end
   end
 
