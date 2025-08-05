@@ -32,7 +32,7 @@ describe Mdbx do
   it "wrapped example" do
     env = Mdbx::Env.new Path.new "/tmp/mdbx"
 
-    kvs = (0..1).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
+    kvs = (0..4).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
     env.transaction do |txn|
       kvs.each { |kv| txn.put txn.dbi, kv[0], kv[1] }
     end

@@ -154,7 +154,7 @@ module Mdbx
       r
     end
 
-    def from!(dbi : LibMdbx::Dbi, k : K, v : V? = nil, &)
+    def from!(dbi : LibMdbx::Dbi, k : K, &)
       c = self.cursor dbi
       if kv = c.on! k
         yield kv
@@ -166,9 +166,9 @@ module Mdbx
       end
     end
 
-    def from!(dbi : LibMdbx::Dbi, k : K, v : V? = nil)
+    def from!(dbi : LibMdbx::Dbi, k : K)
       r = [] of KV
-      from!(dbi, k, v) { |kv| r << kv }
+      from!(dbi, k) { |kv| r << kv }
       r
     end
 
