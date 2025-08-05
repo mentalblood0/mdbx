@@ -31,11 +31,19 @@ describe Mdbx do
 
   it "wrapped example" do
     env = Mdbx::Env.new Path.new "/tmp/mdbx"
+
     k = "key".to_slice
     v = "value".to_slice
     env.transaction do |txn|
-      dbi = txn.dbi
-      txn.put dbi, k, v
+      txn.put txn.dbi, k, v
     end
+
+    kvs = {} of Bytes => Bytes
+    env.transaction do |txn|
+      txn.iter txn.dbi do |kv|
+        kvs[kv[0]] = kv[1]
+      end
+    end
+    kvs.should eq({k => v})
   end
 end

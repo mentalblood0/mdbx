@@ -69,7 +69,7 @@ module Mdbx
       check_error_code "cursor_close(#{cursor})", LibMdbx.cursor_close cursor
     end
 
-    def self.cursor_get(cursor : P, op : LibMdbx::CursorOp) : {key: Bytes, value: Bytes}?
+    def self.cursor_get(cursor : P, op : LibMdbx::CursorOp) : {Bytes, Bytes}?
       ks = uninitialized LibMdbx::Val
       vs = uninitialized LibMdbx::Val
 
@@ -81,8 +81,8 @@ module Mdbx
         check_error_code "cursor_get(#{cursor}, #{op})", e
       end
 
-      {key:   Bytes.new(Pointer(UInt8).new(ks.iov_base.address), ks.iov_len),
-       value: Bytes.new(Pointer(UInt8).new(vs.iov_base.address), vs.iov_len)}
+      {Bytes.new(Pointer(UInt8).new(ks.iov_base.address), ks.iov_len),
+       Bytes.new(Pointer(UInt8).new(vs.iov_base.address), vs.iov_len)}
     end
   end
 
@@ -128,6 +128,14 @@ module Mdbx
       else
         self.transaction { |tx| tx.put dbi, k, v, flags }
       end
+    end
+
+    def iter(dbi : LibMdbx::Dbi, &)
+      c = Mdbx::Api.cursor_open @txn.not_nil!, dbi
+      while kv = Mdbx::Api.cursor_get c, LibMdbx::CursorOp::MDBX_NEXT
+        yield kv
+      end
+      Mdbx::Api.cursor_close c
     end
 
     def finalize
