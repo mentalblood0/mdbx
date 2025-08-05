@@ -187,8 +187,20 @@ module Mdbx
       @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_NEXT
     end
 
+    def prev : KV?
+      @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_PREV
+    end
+
+    def after(k : K) : KV?
+      @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_SET_RANGE, k
+    end
+
     def after(k : K, v : V?) : KV?
-      @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_SET_LOWERBOUND, k, v
+      if v
+        @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_SET_LOWERBOUND, k, v
+      else
+        after k
+      end
     end
 
     def finalize
