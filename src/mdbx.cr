@@ -209,7 +209,7 @@ module Mdbx
       end
     end
 
-    def each
+    def all
       r = [] of KV
       each { |kv| r << kv }
       r

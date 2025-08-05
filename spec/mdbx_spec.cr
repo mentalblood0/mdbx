@@ -40,7 +40,7 @@ describe Mdbx do
 
     env.transaction do |tx|
       db = tx.db
-      db.each.should eq kvs
+      db.all.should eq kvs
       db.from(kvs[0][0]).should eq kvs
       db.from(kvs[2][0]).should eq kvs[2..]
       db.from!(kvs[0][0]).should eq kvs
@@ -52,7 +52,7 @@ describe Mdbx do
       db = tx.db
       kvs.each { |kv| db.delete kv[0], kv[1] }
     end
-    env.transaction { |tx| tx.db.each.should eq [] of Mdbx::KV }
+    env.transaction { |tx| tx.db.all.should eq [] of Mdbx::KV }
     env.transaction { |tx| tx.clear tx.db }
   end
 end
