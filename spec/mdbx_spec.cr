@@ -41,6 +41,7 @@ describe Mdbx do
     env.transaction do |txn|
       txn.each(txn.dbi).should eq([{k, v}])
       txn.from(txn.dbi, k).should eq([{k, v}])
+      txn.from!(txn.dbi, k).should eq([{k, v}])
       txn.from(txn.dbi, k, v).should eq([{k, v}])
     end
   end

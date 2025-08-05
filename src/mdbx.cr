@@ -154,9 +154,27 @@ module Mdbx
       r
     end
 
+    def from!(dbi : LibMdbx::Dbi, k : K, v : V? = nil, &)
+      c = self.cursor dbi
+      if kv = c.on! k
+        yield kv
+      else
+        return
+      end
+      while kv = c.next
+        yield kv
+      end
+    end
+
+    def from!(dbi : LibMdbx::Dbi, k : K, v : V? = nil)
+      r = [] of KV
+      from!(dbi, k, v) { |kv| r << kv }
+      r
+    end
+
     def from(dbi : LibMdbx::Dbi, k : K, v : V? = nil, &)
       c = self.cursor dbi
-      if kv = c.after k, v
+      if kv = c.on k, v
         yield kv
       else
         return
@@ -191,15 +209,19 @@ module Mdbx
       @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_PREV
     end
 
-    def after(k : K) : KV?
+    def on!(k : K) : KV?
+      @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_SET_KEY, k
+    end
+
+    def on(k : K) : KV?
       @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_SET_RANGE, k
     end
 
-    def after(k : K, v : V?) : KV?
+    def on(k : K, v : V?) : KV?
       if v
         @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_SET_LOWERBOUND, k, v
       else
-        after k
+        on k
       end
     end
 
