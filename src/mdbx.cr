@@ -116,27 +116,32 @@ module Mdbx
     getter flags : LibMdbx::EnvFlags
     getter mode : LibC::ModeT
 
-    @env : P
-    property need_finalize : Bool = true
-    property txn : P?
+    getter env : P
+    getter need_finalize : Bool = true
+    getter txn : P?
 
-    def initialize(@path : Path, @flags : LibMdbx::EnvFlags = LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, @mode : LibC::ModeT = 0o664)
+    def initialize(@path, @flags = LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, @mode = 0o664)
       @env = Api.env_create
       Api.env_open @env, @path, @flags, @mode
     end
 
+    protected def initialize(another : Env, @txn)
+      @path = another.path
+      @flags = another.flags
+      @mode = another.mode
+      @env = another.env
+      @need_finalize = false
+    end
+
     def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
-      txn = Api.txn_begin @env, @txn, flags
-      r = self.dup
-      r.txn = txn
-      r.need_finalize = false
+      ctxn = Api.txn_begin @env, @txn, flags
       begin
-        yield r
+        yield Env.new self, ctxn
       rescue ex
-        Api.txn_abort txn
+        Api.txn_abort ctxn
         raise ex
       else
-        Api.txn_commit txn
+        Api.txn_commit ctxn
       end
     end
 

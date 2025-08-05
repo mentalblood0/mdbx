@@ -42,19 +42,18 @@ describe Mdbx do
       db = tx.db
       db.each.should eq kvs
       db.from(kvs[0][0]).should eq kvs
-      db.from(kvs[1][0]).should eq kvs[1..]
+      db.from(kvs[2][0]).should eq kvs[2..]
       db.from!(kvs[0][0]).should eq kvs
-      db.from!(kvs[1][0]).should eq kvs[1..]
+      db.from!(kvs[2][0]).should eq kvs[2..]
       db.from(kvs[0][0], kvs[0][1]).should eq kvs
-      db.from(kvs[1][0], kvs[1][1]).should eq kvs[1..]
+      db.from(kvs[2][0], kvs[1][1]).should eq kvs[2..]
     end
     env.transaction do |tx|
       db = tx.db
       kvs.each { |kv| db.delete kv[0], kv[1] }
     end
     env.transaction do |tx|
-      db = tx.db
-      db.each.should eq [] of Mdbx::KV
+      tx.db.each.should eq [] of Mdbx::KV
     end
   end
 end
