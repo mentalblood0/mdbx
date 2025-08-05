@@ -164,6 +164,7 @@ lib LibMdbx
   fun txn_begin = mdbx_txn_begin(env : Void*, parent : Void*, flags : TxnFlags, txn : Void**) : Error
   fun dbi_open = mdbx_dbi_open(txn : Void*, name : LibC::Char*, flags : DbFlags, dbi : Dbi*) : Error
   fun dbi_close = mdbx_dbi_close(env : Void*, dbi : Dbi) : Error
+  fun drop = mdbx_drop(txn : Void*, dbi : Dbi, del : Bool) : Error
   fun put = mdbx_put(txn : Void*, dbi : Dbi, key : Val*, data : Val*, flags : PutFlags) : Error
   fun del = mdbx_del(txn : Void*, dbi : Dbi, key : Val*, data : Val*) : Error
   fun txn_commit = mdbx_txn_commit(txn : Void*) : Error

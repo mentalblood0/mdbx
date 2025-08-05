@@ -44,6 +44,10 @@ module Mdbx
       check_error_code "dbi_close(#{env}, #{dbi})", LibMdbx.dbi_close env, dbi
     end
 
+    def self.drop(txn : P, dbi : LibMdbx::Dbi, del : Bool)
+      check_error_code "drop(#{txn}, #{dbi}, #{del})", LibMdbx.drop txn, dbi, del
+    end
+
     def self.put(txn : P, dbi : LibMdbx::Dbi, k : Bytes, v : Bytes, flags : LibMdbx::PutFlags) : Nil
       ks = uninitialized LibMdbx::Val
       ks.iov_base = k.to_unsafe
@@ -149,8 +153,16 @@ module Mdbx
       Db.new @txn.not_nil!, Api.dbi_open @txn.not_nil!, name, flags
     end
 
-    def close
-      Api.dbi_close @env, dbi
+    def close(db : Db)
+      Api.dbi_close @env, db.dbi
+    end
+
+    def clear(db : Db)
+      Api.drop @txn.not_nil!, db.dbi, false
+    end
+
+    def drop(db : Db)
+      Api.drop @txn.not_nil!, db.dbi, true
     end
 
     def finalize
