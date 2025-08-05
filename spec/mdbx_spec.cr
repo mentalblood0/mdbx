@@ -40,7 +40,7 @@ describe Mdbx do
 
     kvs = {} of Bytes => Bytes
     env.transaction do |txn|
-      txn.iter txn.dbi do |kv|
+      txn.each txn.dbi do |kv|
         kvs[kv[0]] = kv[1]
       end
     end

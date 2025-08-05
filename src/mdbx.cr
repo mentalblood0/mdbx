@@ -2,6 +2,7 @@ require "./LibMdbx.cr"
 
 module Mdbx
   alias P = Pointer(Void)
+  alias KV = {Bytes, Bytes}
 
   class Exception < Exception
   end
@@ -69,9 +70,17 @@ module Mdbx
       check_error_code "cursor_close(#{cursor})", LibMdbx.cursor_close cursor
     end
 
-    def self.cursor_get(cursor : P, op : LibMdbx::CursorOp) : {Bytes, Bytes}?
+    def self.cursor_get(cursor : P, op : LibMdbx::CursorOp, k : Bytes? = nil, v : Bytes? = nil) : KV?
       ks = uninitialized LibMdbx::Val
+      if k
+        ks.iov_base = k.to_unsafe
+        ks.iov_len = k.size
+      end
       vs = uninitialized LibMdbx::Val
+      if v
+        vs.iov_base = v.to_unsafe
+        vs.iov_len = v.size
+      end
 
       case e = LibMdbx.cursor_get cursor, pointerof(ks), pointerof(vs), op
       when LibMdbx::Error::MDBX_NOTFOUND
@@ -130,16 +139,34 @@ module Mdbx
       end
     end
 
-    def iter(dbi : LibMdbx::Dbi, &)
-      c = Mdbx::Api.cursor_open @txn.not_nil!, dbi
-      while kv = Mdbx::Api.cursor_get c, LibMdbx::CursorOp::MDBX_NEXT
+    def cursor(dbi : LibMdbx::Dbi)
+      Cursor.new Api.cursor_open @txn.not_nil!, dbi
+    end
+
+    def each(dbi : LibMdbx::Dbi, &)
+      c = self.cursor dbi
+      while kv = c.next
         yield kv
       end
-      Mdbx::Api.cursor_close c
     end
 
     def finalize
       Api.env_close @env if @need_finalize
+    end
+  end
+
+  class Cursor
+    getter data : KV?
+
+    protected def initialize(@c : P)
+    end
+
+    def next : KV?
+      @data = Api.cursor_get @c, LibMdbx::CursorOp::MDBX_NEXT
+    end
+
+    def finalize
+      Api.cursor_close @c
     end
   end
 end
