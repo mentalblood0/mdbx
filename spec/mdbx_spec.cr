@@ -3,35 +3,58 @@ require "spec"
 require "../src/mdbx.cr"
 
 describe Mdbx do
-  # it "example" do
-  #   env = Mdbx::Api.env_create
-  #   Mdbx::Api.env_open env, Path.new("/tmp/mdbx"), LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, 0o664_u32
+  env = Mdbx::Env.new Path.new "/tmp/mdbx"
 
-  #   txn = Mdbx::Api.txn_begin env, nil, LibMdbx::TxnFlags.new 0
-  #   dbi = Mdbx::Api.dbi_open txn, nil, LibMdbx::DbFlags.new 0
+  Spec.after_each do
+    env.transaction { |tx| tx.clear tx.db }
+  end
 
-  #   k = "key".to_slice
-  #   v = "value".to_slice
-  #   Mdbx::Api.put txn, dbi, k, v, LibMdbx::PutFlags.new 0
+  it "inserts" do
+    env.transaction do |tx|
+      db = tx.db
+      db.insert "key".to_slice, "value".to_slice
+      expect_raises(Mdbx::Exception) do
+        db.insert "key".to_slice, "value".to_slice
+      end
+    end
+  end
 
-  #   Mdbx::Api.txn_commit txn
+  it "upserts" do
+    env.transaction do |tx|
+      db = tx.db
+      db.upsert "key".to_slice, "value".to_slice
+      db.upsert "key".to_slice, "value".to_slice
+    end
+  end
 
-  #   txn = Mdbx::Api.txn_begin env, Mdbx::P.null, LibMdbx::TxnFlags::MDBX_TXN_RDONLY
-  #   cursor = Mdbx::Api.cursor_open txn, dbi
-  #   kvs = {} of Bytes => Bytes
-  #   while kv = Mdbx::Api.cursor_get cursor, LibMdbx::CursorOp::MDBX_NEXT
-  #     kvs[kv[:key]] = kv[:value]
-  #   end
-  #   Mdbx::Api.cursor_close(cursor)
-  #   kvs.should eq({k => v})
+  it "updates" do
+    env.transaction do |tx|
+      db = tx.db
+      db.insert "key".to_slice, "value".to_slice
+      db.update "key".to_slice, "other".to_slice
+      expect_raises(Mdbx::Exception) do
+        db.update "other".to_slice, "value".to_slice
+      end
+    end
+  end
 
-  #   Mdbx::Api.dbi_close env, dbi
-  #   Mdbx::Api.env_close env
-  # end
+  it "deletes" do
+    env.transaction do |tx|
+      db = tx.db
+      expect_raises(Mdbx::Exception) do
+        db.delete "key".to_slice
+      end
+      db.insert "key".to_slice, "value".to_slice
+      expect_raises(Mdbx::Exception) do
+        db.delete "key".to_slice, "other".to_slice
+      end
+      db.delete "key".to_slice
+      db.insert "key".to_slice, "value".to_slice
+      db.delete "key".to_slice, "value".to_slice
+    end
+  end
 
-  it "wrapped example" do
-    env = Mdbx::Env.new Path.new "/tmp/mdbx"
-
+  it "range-scans" do
     kvs = (0..4).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
     env.transaction do |tx|
       db = tx.db
@@ -48,11 +71,5 @@ describe Mdbx do
       db.from(kvs[0][0], kvs[0][1]).should eq kvs
       db.from(kvs[2][0], kvs[1][1]).should eq kvs[2..]
     end
-    env.transaction do |tx|
-      db = tx.db
-      kvs.each { |kv| db.delete kv[0], kv[1] }
-    end
-    env.transaction { |tx| tx.db.all.should eq [] of Mdbx::KV }
-    env.transaction { |tx| tx.clear tx.db }
   end
 end

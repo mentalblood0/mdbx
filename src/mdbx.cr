@@ -188,7 +188,7 @@ module Mdbx
       put k, v, LibMdbx::PutFlags::MDBX_CURRENT
     end
 
-    def delete(k : K, v : V?)
+    def delete(k : K, v : V? = nil)
       Api.del @txn.not_nil!, @dbi, k, v
     end
 
