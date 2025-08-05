@@ -33,18 +33,34 @@ describe Mdbx do
     env = Mdbx::Env.new Path.new "/tmp/mdbx"
 
     kvs = (0..4).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
-    env.transaction do |txn|
-      kvs.each { |kv| txn.put txn.dbi, kv[0], kv[1] }
+    env.transaction do |tx|
+      dbi = tx.dbi
+      kvs.each { |kv| tx.insert dbi, kv[0], kv[1] }
     end
 
-    env.transaction do |txn|
-      txn.each(txn.dbi).should eq(kvs)
-      txn.from(txn.dbi, kvs[0][0]).should eq kvs
-      txn.from(txn.dbi, kvs[1][0]).should eq kvs[1..]
-      txn.from!(txn.dbi, kvs[0][0]).should eq kvs
-      txn.from!(txn.dbi, kvs[1][0]).should eq kvs[1..]
-      txn.from(txn.dbi, kvs[0][0], kvs[0][1]).should eq kvs
-      txn.from(txn.dbi, kvs[1][0], kvs[1][1]).should eq kvs[1..]
+    env.transaction do |tx|
+      dbi = tx.dbi
+      tx.each(dbi).should eq kvs
+      tx.from(dbi, kvs[0][0]).should eq kvs
+      tx.from(dbi, kvs[1][0]).should eq kvs[1..]
+      tx.from!(dbi, kvs[0][0]).should eq kvs
+      tx.from!(dbi, kvs[1][0]).should eq kvs[1..]
+      tx.from(dbi, kvs[0][0], kvs[0][1]).should eq kvs
+      tx.from(dbi, kvs[1][0], kvs[1][1]).should eq kvs[1..]
+    end
+    env.transaction do |tx|
+      dbi = tx.dbi
+      kvs.each { |kv| tx.delete dbi, kv[0], kv[1] }
+    end
+    env.transaction do |tx|
+      dbi = tx.dbi
+      tx.each(dbi).should eq [] of Mdbx::KV
+      tx.from(dbi, kvs[0][0]).should eq [] of Mdbx::KV
+      tx.from(dbi, kvs[1][0]).should eq [] of Mdbx::KV
+      tx.from!(dbi, kvs[0][0]).should eq [] of Mdbx::KV
+      tx.from!(dbi, kvs[1][0]).should eq [] of Mdbx::KV
+      tx.from(dbi, kvs[0][0], kvs[0][1]).should eq [] of Mdbx::KV
+      tx.from(dbi, kvs[1][0], kvs[1][1]).should eq [] of Mdbx::KV
     end
   end
 end

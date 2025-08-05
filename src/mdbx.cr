@@ -54,6 +54,20 @@ module Mdbx
       check_error_code "put(#{txn}, #{dbi}, #{ks}, #{vs}, #{flags})", LibMdbx.put txn, dbi, pointerof(ks), pointerof(vs), flags
     end
 
+    def self.del(txn : P, dbi : LibMdbx::Dbi, k : Bytes, v : Bytes?) : Nil
+      ks = uninitialized LibMdbx::Val
+      ks.iov_base = k.to_unsafe
+      ks.iov_len = k.size
+      if v
+        vs = uninitialized LibMdbx::Val
+        vs.iov_base = v.to_unsafe
+        vs.iov_len = v.size
+        check_error_code "del(#{txn}, #{dbi}, #{ks}, #{vs})", LibMdbx.del txn, dbi, pointerof(ks), pointerof(vs)
+      else
+        check_error_code "del(#{txn}, #{dbi}, #{ks}, NULL)", LibMdbx.del txn, dbi, pointerof(ks), Pointer(LibMdbx::Val).null
+      end
+    end
+
     def self.txn_commit(txn : P) : Nil
       check_error_code "txn_commit(#{txn})", LibMdbx.txn_commit txn
     end
@@ -133,8 +147,24 @@ module Mdbx
       Api.dbi_close @env, dbi
     end
 
-    def put(dbi : LibMdbx::Dbi, k : K, v : V, flags : LibMdbx::PutFlags = LibMdbx::PutFlags.new(0))
+    def put(dbi : LibMdbx::Dbi, k : K, v : V, flags : LibMdbx::PutFlags)
       Api.put @txn.not_nil!, dbi, k, v, flags
+    end
+
+    def insert(dbi : LibMdbx::Dbi, k : K, v : V)
+      put dbi, k, v, LibMdbx::PutFlags::MDBX_NOOVERWRITE
+    end
+
+    def upsert(dbi : LibMdbx::Dbi, k : K, v : V)
+      put dbi, k, v, LibMdbx::PutFlags::MDBX_UPSERT
+    end
+
+    def update(dbi : LibMdbx::Dbi, k : K, v : V)
+      put dbi, k, v, LibMdbx::PutFlags::MDBX_CURRENT
+    end
+
+    def delete(dbi : LibMdbx::Dbi, k : K, v : V?)
+      Api.del @txn.not_nil!, dbi, k, v
     end
 
     def cursor(dbi : LibMdbx::Dbi)
