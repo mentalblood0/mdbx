@@ -120,31 +120,21 @@ module Mdbx
   end
 
   class Env
-    getter path : Path
-    getter flags : LibMdbx::EnvFlags
-    getter mode : LibC::ModeT
-
     getter env : P
-    getter need_finalize : Bool = true
     getter txn : P?
 
-    def initialize(@path, @flags = LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, @mode = 0o664)
+    def initialize(path : Path, flags : LibMdbx::EnvFlags = LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, mode : LibC::ModeT = 0o664)
       @env = Api.env_create
-      Api.env_open @env, @path, @flags, @mode
+      Api.env_open @env, path, flags, mode
     end
 
-    protected def initialize(another : Env, @txn)
-      @path = another.path
-      @flags = another.flags
-      @mode = another.mode
-      @env = another.env
-      @need_finalize = false
+    protected def initialize(@env, @txn)
     end
 
     def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
       ctxn = Api.txn_begin @env, @txn, flags
       begin
-        yield Env.new self, ctxn
+        yield Env.new @env, ctxn
       rescue ex
         Api.txn_abort ctxn
         raise ex
@@ -170,7 +160,7 @@ module Mdbx
     end
 
     def finalize
-      Api.env_close @env if @need_finalize
+      Api.env_close @env unless @txn
     end
   end
 
