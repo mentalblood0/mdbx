@@ -1,3 +1,5 @@
+require "yaml"
+
 require "./LibMdbx.cr"
 
 module Mdbx
@@ -129,11 +131,19 @@ module Mdbx
   end
 
   class Env
-    getter env : P
+    include YAML::Serializable
+    include YAML::Serializable::Strict
 
-    def initialize(path : Path, flags : LibMdbx::EnvFlags = LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, mode : LibC::ModeT = 0o664)
+    getter path : Path
+    getter flags : LibMdbx::EnvFlags
+    getter mode : LibC::ModeT
+
+    @[YAML::Field(ignore: true)]
+    getter env : P = P.null
+
+    def after_initialize
       @env = Api.env_create
-      Api.env_open @env, path, flags, mode
+      Api.env_open @env, @path, @flags, @mode
     end
 
     macro mtx(parent)

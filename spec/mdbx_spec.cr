@@ -3,7 +3,13 @@ require "spec"
 require "../src/mdbx.cr"
 
 describe Mdbx do
-  env = Mdbx::Env.new Path.new "/tmp/mdbx"
+  env = Mdbx::Env.from_yaml <<-YAML
+  path: /tmp/mdbx
+  flags:
+    - MDBX_NOSUBDIR
+    - MDBX_LIFORECLAIM
+  mode: 0o664
+  YAML
 
   Spec.after_each do
     env.transaction { |tx| tx.clear tx.db }
