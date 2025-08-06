@@ -196,7 +196,7 @@ module Mdbx
     end
 
     def put(k : K, v : V, flags : LibMdbx::PutFlags)
-      Api.put @txn.not_nil!, @dbi, k, v, flags
+      Api.put @txn, @dbi, k, v, flags
     end
 
     def insert(k : K, v : V)
@@ -212,15 +212,15 @@ module Mdbx
     end
 
     def delete(k : K, v : V? = nil)
-      Api.del @txn.not_nil!, @dbi, k, v
+      Api.del @txn, @dbi, k, v
     end
 
     def get(k : K)
-      Api.get @txn.not_nil!, @dbi, k
+      Api.get @txn, @dbi, k
     end
 
     def cursor
-      Cursor.new Api.cursor_open @txn.not_nil!, @dbi
+      Cursor.new Api.cursor_open @txn, @dbi
     end
 
     def each(&)
