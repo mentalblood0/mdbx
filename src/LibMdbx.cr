@@ -159,6 +159,7 @@ lib LibMdbx
 
   fun strerror = mdbx_strerror(errnum : Int32) : LibC::Char*
   fun env_create = mdbx_env_create(penv : Void**) : Error
+  fun env_set_maxdbs = mdbx_env_set_maxdbs(env : Void*, dbs : Dbi) : Error
   fun env_open = mdbx_env_open(env : Void*, pathname : LibC::Char*, flags : EnvFlags, mode : LibC::ModeT) : Error
   fun env_close = mdbx_env_close(env : Void*) : Error
   fun txn_begin = mdbx_txn_begin(env : Void*, parent : Void*, flags : TxnFlags, txn : Void**) : Error

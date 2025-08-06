@@ -26,6 +26,10 @@ module Mdbx
       r
     end
 
+    def self.env_set_maxdbs(env : P, n : LibMdbx::Dbi) : Nil
+      mcec "env_set_maxdbs(#{env}, #{n})", LibMdbx.env_set_maxdbs env, n
+    end
+
     def self.env_open(env : P, path : Path, flags : LibMdbx::EnvFlags, mode : LibC::ModeT) : Nil
       mcec "env_open(#{env}, \"#{path}\", #{flags}, #{mode})", LibMdbx.env_open env, path.to_s.to_unsafe, flags, mode
     end
@@ -137,17 +141,20 @@ module Mdbx
     getter path : Path
     getter flags : LibMdbx::EnvFlags
     getter mode : LibC::ModeT
+    getter db_flags : Hash(String, LibMdbx::DbFlags)?
 
     @[YAML::Field(ignore: true)]
     getter env : P = P.null
 
-    def initialize(@path, @flags, @mode)
+    def initialize(@path, @flags, @mode, @db_flags)
       @env = Api.env_create
+      Api.env_set_maxdbs @env, LibMdbx::Dbi.new @db_flags.not_nil!.size if @db_flags
       Api.env_open @env, @path, @flags, @mode
+      transaction { |tx| @db_flags.not_nil!.each { |name, flags| tx.db tx.dbi name, flags } } if @db_flags
     end
 
     def after_initialize
-      initialize @path, @flags, @mode
+      initialize @path, @flags, @mode, @db_flags
     end
 
     macro mtx(parent)
@@ -186,8 +193,12 @@ module Mdbx
       mtx @txn
     end
 
-    def db(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
-      Db.new @txn, Api.dbi_open @txn, name, flags
+    def dbi(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
+      Api.dbi_open @txn, name, flags
+    end
+
+    def db(dbi : LibMdbx::Dbi)
+      Db.new @txn, dbi
     end
 
     def clear(db : Db)
