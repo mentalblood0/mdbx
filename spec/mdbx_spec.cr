@@ -71,6 +71,7 @@ describe Mdbx do
       db = tx.db dbi
       db.insert "key".to_slice, "value".to_slice
       db.get("key".to_slice).should eq "value".to_slice
+      db.get("other".to_slice).should eq nil
     end
   end
 
