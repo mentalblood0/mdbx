@@ -171,7 +171,8 @@ module Mdbx
     end
   end
 
-  class Transaction < Env
+  class Transaction
+    getter env : P
     getter txn : P
 
     def initialize(@env, @txn)
