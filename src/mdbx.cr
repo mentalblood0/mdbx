@@ -171,11 +171,11 @@ module Mdbx
     end
   end
 
-  class Transaction
+  struct Transaction
     getter env : P
     getter txn : P
 
-    def initialize(@env, @txn)
+    protected def initialize(@env, @txn)
     end
 
     def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
@@ -193,17 +193,13 @@ module Mdbx
     def drop(db : Db)
       Api.drop @txn, db.dbi, true
     end
-
-    def finalize
-    end
   end
 
-  class Db
+  struct Db
+    getter txn : P
     getter dbi : LibMdbx::Dbi
 
-    @txn : P
-
-    def initialize(@txn, @dbi)
+    protected def initialize(@txn, @dbi)
     end
 
     def put(k : K, v : V, flags : LibMdbx::PutFlags)
