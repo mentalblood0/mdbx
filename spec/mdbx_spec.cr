@@ -62,6 +62,18 @@ describe Mdbx do
     end
   end
 
+  it "does not leak", tags: "leakage" do
+    k = ("a" * 1024).to_slice
+    v = ("b" * 1024).to_slice
+    loop do
+      env.transaction { |tx| tx.db.insert k, v }
+      env.transaction { |tx| tx.db.update k, v }
+      env.transaction { |tx| tx.db.get k }
+      env.transaction { |tx| tx.db.delete k }
+      sleep 1.nanoseconds
+    end
+  end
+
   it "range-scans" do
     kvs = (0..4).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
     env.transaction do |tx|
