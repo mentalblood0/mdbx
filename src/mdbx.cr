@@ -130,20 +130,16 @@ module Mdbx
 
   class Env
     getter env : P
-    getter txn : P?
 
     def initialize(path : Path, flags : LibMdbx::EnvFlags = LibMdbx::EnvFlags::MDBX_NOSUBDIR | LibMdbx::EnvFlags::MDBX_LIFORECLAIM, mode : LibC::ModeT = 0o664)
       @env = Api.env_create
       Api.env_open @env, path, flags, mode
     end
 
-    protected def initialize(@env, @txn)
-    end
-
-    def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
-      ctxn = Api.txn_begin @env, @txn, flags
+    macro mtx(parent)
+      ctxn = Api.txn_begin @env, {{parent}}, flags
       begin
-        yield Env.new @env, ctxn
+        yield Transaction.new @env, ctxn
       rescue ex
         Api.txn_abort ctxn
         raise ex
@@ -152,24 +148,42 @@ module Mdbx
       end
     end
 
-    def db(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
-      Db.new @txn.not_nil!, Api.dbi_open @txn.not_nil!, name, flags
+    def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
+      mtx nil
     end
 
     def close(db : Db)
       Api.dbi_close @env, db.dbi
     end
 
+    def finalize
+      Api.env_close @env
+    end
+  end
+
+  class Transaction < Env
+    getter txn : P
+
+    def initialize(@env, @txn)
+    end
+
+    def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
+      mtx @txn
+    end
+
+    def db(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
+      Db.new @txn, Api.dbi_open @txn, name, flags
+    end
+
     def clear(db : Db)
-      Api.drop @txn.not_nil!, db.dbi, false
+      Api.drop @txn, db.dbi, false
     end
 
     def drop(db : Db)
-      Api.drop @txn.not_nil!, db.dbi, true
+      Api.drop @txn, db.dbi, true
     end
 
     def finalize
-      Api.env_close @env unless @txn
     end
   end
 
