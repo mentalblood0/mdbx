@@ -11,6 +11,6 @@ scripts:
                                        grep -v '\^{}' | 
                                        awk -F/ '{print $3}' | 
                                        sort -V | 
-                                       tail -n 1) && git clone --depth 1 --branch "$latest_tag" https://github.com/erthink/libmdbx/ && cmake . && make lib-static
+                                       tail -n 1) && git clone --depth 1 --branch "$latest_tag" https://github.com/erthink/libmdbx/ && cd libmdbx && cmake . && make lib-static
 
 license: MIT
