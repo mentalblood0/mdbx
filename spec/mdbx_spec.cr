@@ -75,17 +75,15 @@ describe Mdbx do
   end
 
   it "range-scans" do
-    kvs = (0..4).map { |i| {"key_#{i}".to_slice, "value_#{i}".to_slice} }
+    n = 100
+    kvs = (0..n).map { |i| i.to_s.rjust(n.to_s.size).to_slice }.map { |i| {i, i} }
     env.transaction do |tx|
       db = tx.db
       kvs.each { |k, v| db.insert k, v }
       db.all.should eq kvs
-      db.from(kvs[0][0]).should eq kvs
-      db.from(kvs[2][0]).should eq kvs[2..]
-      db.from!(kvs[0][0]).should eq kvs
-      db.from!(kvs[2][0]).should eq kvs[2..]
-      db.from(kvs[0][0], kvs[0][1]).should eq kvs
-      db.from(kvs[2][0], kvs[1][1]).should eq kvs[2..]
+      (0..n).each { |i| db.from(kvs[i][0]).should eq kvs[i..] }
+      (0..n).each { |i| db.from!(kvs[i][0]).should eq kvs[i..] }
+      (0..n).each { |i| db.from(kvs[i][0], kvs[i][1]).should eq kvs[i..] }
     end
   end
 end
