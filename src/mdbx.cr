@@ -68,7 +68,7 @@ module Mdbx
       mcec "put(#{txn}, #{dbi}, #{ks}, #{vs}, #{flags})", LibMdbx.put txn, dbi, pointerof(ks), pointerof(vs), flags
     end
 
-    def self.del(txn : P, dbi : LibMdbx::Dbi, k : Bytes, v : Bytes?) : Nil
+    def self.del(txn : P, dbi : LibMdbx::Dbi, k : Bytes, v : Bytes?) : Bool
       ks = uninitialized LibMdbx::Val
       ks.iov_base = k.to_unsafe
       ks.iov_len = k.size
@@ -76,10 +76,15 @@ module Mdbx
         vs = uninitialized LibMdbx::Val
         vs.iov_base = v.to_unsafe
         vs.iov_len = v.size
-        mcec "del(#{txn}, #{dbi}, #{ks}, #{vs})", LibMdbx.del txn, dbi, pointerof(ks), pointerof(vs)
+        e = LibMdbx.del txn, dbi, pointerof(ks), pointerof(vs)
+        return false if e == LibMdbx::Error::MDBX_NOTFOUND
+        mcec "del(#{txn}, #{dbi}, #{ks}, #{vs})", e
       else
-        mcec "del(#{txn}, #{dbi}, #{ks}, NULL)", LibMdbx.del txn, dbi, pointerof(ks), Pointer(LibMdbx::Val).null
+        e = LibMdbx.del txn, dbi, pointerof(ks), Pointer(LibMdbx::Val).null
+        return false if e == LibMdbx::Error::MDBX_NOTFOUND
+        mcec "del(#{txn}, #{dbi}, #{ks}, NULL)", e
       end
+      true
     end
 
     def self.get(txn : P, dbi : LibMdbx::Dbi, k : Bytes) : Bytes?
@@ -136,6 +141,18 @@ module Mdbx
     end
   end
 
+  macro mtx(parent)
+    ctxn = Api.txn_begin @env, {{parent}}, flags
+    begin
+      yield Transaction.new @env, ctxn
+    rescue ex
+      Api.txn_abort ctxn
+      raise ex
+    else
+      Api.txn_commit ctxn
+    end
+  end
+
   class Env
     include YAML::Serializable
     include YAML::Serializable::Strict
@@ -159,20 +176,8 @@ module Mdbx
       initialize @path, @flags, @mode, @db_flags
     end
 
-    macro mtx(parent)
-      ctxn = Api.txn_begin @env, {{parent}}, flags
-      begin
-        yield Transaction.new @env, ctxn
-      rescue ex
-        Api.txn_abort ctxn
-        raise ex
-      else
-        Api.txn_commit ctxn
-      end
-    end
-
     def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
-      mtx nil
+      Mdbx.mtx nil
     end
 
     def close(db : Db)
@@ -192,7 +197,7 @@ module Mdbx
     end
 
     def transaction(flags : LibMdbx::TxnFlags = LibMdbx::TxnFlags.new(0), &)
-      mtx @txn
+      Mdbx.mtx @txn
     end
 
     def dbi(name : String? = nil, flags : LibMdbx::DbFlags = LibMdbx::DbFlags.new(0))
@@ -235,7 +240,7 @@ module Mdbx
       put k, v, LibMdbx::PutFlags::MDBX_CURRENT
     end
 
-    def delete(k : K, v : V? = nil)
+    def delete(k : K, v : V? = nil) : Bool
       Api.del @txn, @dbi, k, v
     end
 

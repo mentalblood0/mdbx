@@ -53,16 +53,12 @@ describe Mdbx do
   it "deletes" do
     env.transaction do |tx|
       db = tx.db dbi
-      expect_raises(Mdbx::Exception) do
-        db.delete "key".to_slice
-      end
+      db.delete("key".to_slice).should eq false
       db.insert "key".to_slice, "value".to_slice
-      expect_raises(Mdbx::Exception) do
-        db.delete "key".to_slice, "other".to_slice
-      end
-      db.delete "key".to_slice
+      db.delete("key".to_slice, "other".to_slice).should eq false
+      db.delete("key".to_slice).should eq true
       db.insert "key".to_slice, "value".to_slice
-      db.delete "key".to_slice, "value".to_slice
+      db.delete("key".to_slice, "value".to_slice).should eq true
     end
   end
 
