@@ -141,9 +141,13 @@ module Mdbx
     @[YAML::Field(ignore: true)]
     getter env : P = P.null
 
-    def after_initialize
+    def initialize(@path, @flags, @mode)
       @env = Api.env_create
       Api.env_open @env, @path, @flags, @mode
+    end
+
+    def after_initialize
+      initialize @path, @flags, @mode
     end
 
     macro mtx(parent)
