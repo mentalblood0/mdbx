@@ -95,7 +95,7 @@ module Mdbx
       r = LibMdbx.get txn, dbi, pointerof(ks), pointerof(vs)
       return nil if r == LibMdbx::Error::MDBX_NOTFOUND
       mcec "get(#{txn}, #{dbi}, #{ks}, #{vs})", r
-      Bytes.new Pointer(UInt8).new(vs.iov_base.address), vs.iov_len
+      Bytes.new(vs.iov_base.as(UInt8*), vs.iov_len, read_only: true)
     end
 
     def self.txn_commit(txn : P) : Nil
@@ -136,8 +136,8 @@ module Mdbx
         mcec "cursor_get(#{cursor}, #{op})", e
       end
 
-      {Bytes.new(Pointer(UInt8).new(ks.iov_base.address), ks.iov_len),
-       Bytes.new(Pointer(UInt8).new(vs.iov_base.address), vs.iov_len)}
+      {Bytes.new(ks.iov_base.as(UInt8*), ks.iov_len, read_only: true),
+       Bytes.new(vs.iov_base.as(UInt8*), vs.iov_len, read_only: true)}
     end
   end
 
