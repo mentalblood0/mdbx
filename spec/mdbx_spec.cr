@@ -68,6 +68,7 @@ describe Mdbx do
       db.insert "key".to_slice, "value".to_slice
       db.get("key".to_slice).should eq "value".to_slice
       db.get("other".to_slice).should eq nil
+      db.get_eg("kea".to_slice).should eq({"key".to_slice, "value".to_slice})
     end
   end
 

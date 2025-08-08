@@ -34,7 +34,7 @@ module Mdbx
       mcec "env_open(#{env}, \"#{path}\", #{flags}, #{mode})", LibMdbx.env_open env, path.to_s.to_unsafe, flags, mode
     end
 
-    def self.env_close(env : P)
+    def self.env_close(env : P) : Nil
       mcec "env_close(#{env})", LibMdbx.env_close env
     end
 
@@ -50,11 +50,11 @@ module Mdbx
       r
     end
 
-    def self.dbi_close(env : P, dbi : LibMdbx::Dbi)
+    def self.dbi_close(env : P, dbi : LibMdbx::Dbi) : Nil
       mcec "dbi_close(#{env}, #{dbi})", LibMdbx.dbi_close env, dbi
     end
 
-    def self.drop(txn : P, dbi : LibMdbx::Dbi, del : Bool)
+    def self.drop(txn : P, dbi : LibMdbx::Dbi, del : Bool) : Nil
       mcec "drop(#{txn}, #{dbi}, #{del})", LibMdbx.drop txn, dbi, del
     end
 
@@ -87,7 +87,7 @@ module Mdbx
       true
     end
 
-    def self.get(txn : P, dbi : LibMdbx::Dbi, k : Bytes) : Bytes?
+    def self.get(txn : P, dbi : LibMdbx::Dbi, k : Bytes) : V?
       ks = uninitialized LibMdbx::Val
       ks.iov_base = k.to_unsafe
       ks.iov_len = k.size
@@ -98,11 +98,25 @@ module Mdbx
       Bytes.new(vs.iov_base.as(UInt8*), vs.iov_len, read_only: true)
     end
 
+    def self.get_equal_or_great(txn : P, dbi : LibMdbx::Dbi, k : Bytes) : KV?
+      ks = uninitialized LibMdbx::Val
+      ks.iov_base = k.to_unsafe
+      ks.iov_len = k.size
+      vs = uninitialized LibMdbx::Val
+      r = LibMdbx.get_equal_or_great txn, dbi, pointerof(ks), pointerof(vs)
+      return nil if r == LibMdbx::Error::MDBX_NOTFOUND
+      unless r == LibMdbx::Error::MDBX_RESULT_TRUE
+        mcec "get_equal_or_great(#{txn}, #{dbi}, #{ks}, #{vs})", r
+      end
+      {Bytes.new(ks.iov_base.as(UInt8*), ks.iov_len, read_only: true),
+       Bytes.new(vs.iov_base.as(UInt8*), vs.iov_len, read_only: true)}
+    end
+
     def self.txn_commit(txn : P) : Nil
       mcec "txn_commit(#{txn})", LibMdbx.txn_commit txn
     end
 
-    def self.txn_abort(txn : P)
+    def self.txn_abort(txn : P) : Nil
       mcec "txn_abort(#{txn})", LibMdbx.txn_abort txn
     end
 
@@ -112,7 +126,7 @@ module Mdbx
       r
     end
 
-    def self.cursor_close(cursor : P)
+    def self.cursor_close(cursor : P) : Nil
       mcec "cursor_close(#{cursor})", LibMdbx.cursor_close cursor
     end
 
@@ -246,6 +260,10 @@ module Mdbx
 
     def get(k : K)
       Api.get @txn, @dbi, k
+    end
+
+    def get_eg(k : K)
+      Api.get_equal_or_great @txn, @dbi, k
     end
 
     def cursor
